@@ -62,6 +62,7 @@ TRANSPARENT_BLOCKS = frozenset({
     "minecraft:cherry_sapling", "minecraft:pale_oak_sapling",
     "minecraft:brown_mushroom", "minecraft:red_mushroom",
     "minecraft:torch", "minecraft:wall_torch",
+    "minecraft:lantern", "minecraft:soul_lantern",
     "minecraft:soul_torch", "minecraft:soul_wall_torch",
     "minecraft:redstone_torch", "minecraft:redstone_wall_torch",
     "minecraft:lantern", "minecraft:soul_lantern",
@@ -125,6 +126,14 @@ TRANSPARENT_BLOCKS = frozenset({
     "minecraft:potted_fern", "minecraft:potted_dead_bush",
     "minecraft:potted_cactus", "minecraft:potted_azalea_bush",
     "minecraft:potted_flowering_azalea_bush", "minecraft:potted_torchflower",
+    "minecraft:azalea", "minecraft:flowering_azalea",
+    "minecraft:pink_petals", "minecraft:nether_sprouts",
+    "minecraft:warped_roots", "minecraft:crimson_roots",
+    "minecraft:warped_fungus", "minecraft:crimson_fungus",
+    "minecraft:spore_blossom",
+    "minecraft:amethyst_cluster", "minecraft:large_amethyst_bud",
+    "minecraft:medium_amethyst_bud", "minecraft:small_amethyst_bud",
+    "minecraft:pointed_dripstone",
 })
 
 # Non-solid blocks (no geometry, treated like air for face culling)
@@ -157,6 +166,7 @@ NON_SOLID_BLOCKS = frozenset({
 # These are non-full-cube blocks with model-based meshes (torches, fences, slabs, etc.)
 MODEL_BLOCKS = frozenset({
     "minecraft:torch", "minecraft:wall_torch",
+    "minecraft:lantern", "minecraft:soul_lantern",
     "minecraft:soul_torch", "minecraft:soul_wall_torch",
     "minecraft:redstone_torch", "minecraft:redstone_wall_torch",
     "minecraft:lever",
@@ -238,6 +248,14 @@ MODEL_BLOCKS = frozenset({
     "minecraft:brown_carpet", "minecraft:green_carpet", "minecraft:red_carpet",
     "minecraft:black_carpet", "minecraft:moss_carpet",
     "minecraft:lily_pad",
+    "minecraft:azalea", "minecraft:flowering_azalea",
+    "minecraft:pink_petals", "minecraft:nether_sprouts",
+    "minecraft:warped_roots", "minecraft:crimson_roots",
+    "minecraft:warped_fungus", "minecraft:crimson_fungus",
+    "minecraft:spore_blossom",
+    "minecraft:amethyst_cluster", "minecraft:large_amethyst_bud",
+    "minecraft:medium_amethyst_bud", "minecraft:small_amethyst_bud",
+    "minecraft:pointed_dripstone",
     "minecraft:lantern", "minecraft:soul_lantern",
     "minecraft:campfire", "minecraft:soul_campfire",
     "minecraft:chest", "minecraft:ender_chest", "minecraft:trapped_chest",
@@ -404,6 +422,7 @@ LIGHT_EMITTING_BLOCKS = {
 # Blocks whose meshes should not cast shadows.
 NOSHADOW_MESH_BLOCKS = frozenset({
     "minecraft:torch", "minecraft:wall_torch",
+    "minecraft:lantern", "minecraft:soul_lantern",
     "minecraft:soul_torch", "minecraft:soul_wall_torch",
     "minecraft:redstone_torch", "minecraft:redstone_wall_torch",
     "minecraft:oak_trapdoor", "minecraft:spruce_trapdoor",
@@ -442,6 +461,35 @@ def _build_self_illum_texture_names() -> frozenset:
 
 _SELF_ILLUMINATED_TEXTURE_NAMES = _build_self_illum_texture_names()
 
+
+
+def get_surface_property(texture_name: str) -> str:
+    """Return a CS/Source-style surface property for a Minecraft texture name."""
+    name = texture_name.split("[")[0]
+    name = name[len("minecraft:"):] if name.startswith("minecraft:") else name
+    if any(k in name for k in ("water", "kelp", "seagrass")):
+        return "water"
+    if "lava" in name:
+        return "default"
+    if any(k in name for k in ("glass", "ice")):
+        return "glass"
+    if any(k in name for k in ("log", "wood", "planks", "stem", "hyphae", "bamboo", "door", "fence", "chest")):
+        return "wood"
+    if any(k in name for k in ("sand", "gravel", "concrete_powder")):
+        return "sand"
+    if any(k in name for k in ("dirt", "mud", "clay", "farmland", "podzol", "mycelium")):
+        return "dirt"
+    if any(k in name for k in ("grass", "leaves", "vine", "azalea", "roots", "sprouts", "petals", "flower", "mushroom", "fungus", "crop", "wheat")):
+        return "grass"
+    if any(k in name for k in ("iron", "gold", "copper", "metal", "anvil", "chain", "lantern")):
+        return "metal"
+    if any(k in name for k in ("wool", "carpet")):
+        return "carpet"
+    if any(k in name for k in ("snow",)):
+        return "snow"
+    if any(k in name for k in ("stone", "deepslate", "granite", "diorite", "andesite", "tuff", "basalt", "blackstone", "dripstone", "amethyst", "ore", "brick", "quartz", "prismarine", "lantern")):
+        return "rock"
+    return "default"
 
 def is_air(block_name: str) -> bool:
     """Check if block is air (or structure void)."""
@@ -557,6 +605,10 @@ def get_texture_name_for_face(block_name: str, face_dir: str) -> str:
     """
     base = get_block_base_name(block_name)
     short = base[len("minecraft:"):] if base.startswith("minecraft:") else base
+    if short == "water" and face_dir in {"+x", "-x", "+z", "-z"}:
+        return "water_flow"
+    if short == "lava" and face_dir in {"+x", "-x", "+z", "-z"}:
+        return "lava_flow"
     if short in FACE_TEXTURE_MAP:
         face_map = FACE_TEXTURE_MAP[short]
         if face_dir in face_map:
@@ -623,6 +675,19 @@ FORCED_TRANSLUCENT_TEXTURES: frozenset = frozenset({
     "fire_coral_fan", "horn_coral_fan",
     "dead_tube_coral_fan", "dead_brain_coral_fan", "dead_bubble_coral_fan",
     "dead_fire_coral_fan", "dead_horn_coral_fan",
+    "azalea_plant", "azalea_side", "azalea_top", "flowering_azalea_side", "flowering_azalea_top",
+    "pink_petals", "nether_sprouts", "warped_roots", "crimson_roots",
+    "warped_fungus", "crimson_fungus", "spore_blossom", "spore_blossom_base",
+    "amethyst_cluster", "large_amethyst_bud", "medium_amethyst_bud", "small_amethyst_bud",
+    "pointed_dripstone_up_tip", "pointed_dripstone_up_frustum", "pointed_dripstone_up_middle", "pointed_dripstone_up_base",
+    "pointed_dripstone_down_tip", "pointed_dripstone_down_frustum", "pointed_dripstone_down_middle", "pointed_dripstone_down_base",
+    "oak_door_top", "oak_door_bottom", "spruce_door_top", "spruce_door_bottom",
+    "birch_door_top", "birch_door_bottom", "jungle_door_top", "jungle_door_bottom",
+    "acacia_door_top", "acacia_door_bottom", "dark_oak_door_top", "dark_oak_door_bottom",
+    "crimson_door_top", "crimson_door_bottom", "warped_door_top", "warped_door_bottom",
+    "mangrove_door_top", "mangrove_door_bottom", "cherry_door_top", "cherry_door_bottom",
+    "bamboo_door_top", "bamboo_door_bottom", "iron_door_top", "iron_door_bottom",
+    "twisting_vines", "twisting_vines_plant", "weeping_vines", "weeping_vines_plant",
 })
 
 
@@ -842,6 +907,7 @@ _NON_SOLID_MODEL_BLOCKS = frozenset({
     "minecraft:dead_bush",
     # Torches
     "minecraft:torch", "minecraft:wall_torch",
+    "minecraft:lantern", "minecraft:soul_lantern",
     "minecraft:soul_torch", "minecraft:soul_wall_torch",
     "minecraft:redstone_torch", "minecraft:redstone_wall_torch",
     # Rails

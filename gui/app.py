@@ -324,7 +324,7 @@ class MCtoCSApp(ctk.CTk):
         # MC Assets folder (for model blocks)
         ctk.CTkLabel(tex_frame, text="MC Assets:").grid(
             row=4, column=0, padx=(15, 5), pady=(0, 5), sticky="w")
-        self._assets_entry = ctk.CTkEntry(tex_frame, placeholder_text="Vanilla MC assets folder or .zip (has blockstates/, models/)...")
+        self._assets_entry = ctk.CTkEntry(tex_frame, placeholder_text="Vanilla MC assets folder, .zip, or .jar (has blockstates/, models/)...")
         self._assets_entry.grid(row=4, column=1, padx=5, pady=(0, 5), sticky="ew")
         ctk.CTkButton(tex_frame, text="Browse", width=80,
                       command=self._browse_mc_assets).grid(
@@ -434,6 +434,11 @@ class MCtoCSApp(ctk.CTk):
         ctk.CTkCheckBox(entity_frame, text="Auto-lighting",
                         variable=self._auto_light_var).grid(
             row=2, column=0, padx=(0, 20), pady=(5, 0), sticky="w")
+
+        self._merge_edges_var = ctk.BooleanVar(value=False)
+        ctk.CTkCheckBox(entity_frame, text="Merge edges",
+                        variable=self._merge_edges_var).grid(
+            row=2, column=1, padx=(0, 20), pady=(5, 0), sticky="w")
 
         # ===== ADDON EXPORT =====
         addon_frame = ctk.CTkFrame(main_frame)
@@ -614,8 +619,8 @@ class MCtoCSApp(ctk.CTk):
     def _browse_mc_assets(self):
         # First try file dialog for zip, then fall back to directory
         path = filedialog.askopenfilename(
-            title="Select MC Assets (zip) or cancel to pick a folder",
-            filetypes=[("ZIP archives", "*.zip"), ("All files", "*.*")],
+            title="Select MC Assets (.jar/.zip) or cancel to pick a folder",
+            filetypes=[("Minecraft assets", "*.jar *.zip"), ("JAR files", "*.jar"), ("ZIP archives", "*.zip"), ("All files", "*.*")],
         )
         if not path:
             path = filedialog.askdirectory(title="Select Vanilla MC Assets Folder")
@@ -623,7 +628,7 @@ class MCtoCSApp(ctk.CTk):
             self._mc_assets_path = path
             self._assets_entry.delete(0, "end")
             self._assets_entry.insert(0, path)
-            if os.path.isfile(path) and path.lower().endswith(".zip"):
+            if os.path.isfile(path) and path.lower().endswith((".zip", ".jar")):
                 import zipfile
                 try:
                     with zipfile.ZipFile(path, "r") as zf:
@@ -631,7 +636,7 @@ class MCtoCSApp(ctk.CTk):
                     has_bs = any("blockstates/" in n for n in names)
                     if has_bs:
                         self._assets_info_label.configure(
-                            text="MC assets zip loaded — model blocks enabled",
+                            text="MC assets archive loaded — model blocks enabled",
                             text_color="#2ecc71")
                     else:
                         self._assets_info_label.configure(
@@ -1172,6 +1177,7 @@ class MCtoCSApp(ctk.CTk):
             use_slime = self._slime_var.get()
             use_stair_clips = self._stair_clip_var.get()
             use_auto_light = self._auto_light_var.get()
+            use_merge_edges = self._merge_edges_var.get()
             separate_liquids = use_func_water or use_trigger_hurt
             offset = (
                 float(self._offset_x.get() or 0),
@@ -1188,7 +1194,7 @@ class MCtoCSApp(ctk.CTk):
             mc_assets = self._mc_assets_path or self._assets_entry.get().strip()
             if mc_assets and (os.path.isdir(mc_assets)
                               or (os.path.isfile(mc_assets)
-                                  and mc_assets.lower().endswith(".zip"))):
+                                  and mc_assets.lower().endswith((".zip", ".jar")))):
                 try:
                     model_gen = ModelBlockQuadGenerator(mc_assets)
                     self._log("Model block generator initialized")
@@ -1296,7 +1302,7 @@ class MCtoCSApp(ctk.CTk):
             if water_quads and use_func_water:
                 water_groups = group_quads_merge_connected(water_quads)
                 for wg in water_groups:
-                    block_groups = list(group_quads_by_block_pos(wg).values())
+                    block_groups = [wg] if use_merge_edges else list(group_quads_by_block_pos(wg).values())
                     entity_quad_groups.append((block_groups, "func_water"))
                 self._log(f"Water: {len(water_groups)} func_water entities")
             elif water_quads:
@@ -1305,7 +1311,7 @@ class MCtoCSApp(ctk.CTk):
             if lava_quads and use_trigger_hurt:
                 lava_groups = group_quads_merge_connected(lava_quads)
                 for lg in lava_groups:
-                    lava_block_groups = list(group_quads_by_block_pos(lg).values())
+                    lava_block_groups = [lg] if use_merge_edges else list(group_quads_by_block_pos(lg).values())
                     entity_quad_groups.append((lava_block_groups, "func_water"))
                     entity_quad_groups.append(([list(q) for q in lava_block_groups], "trigger_hurt"))
                 self._log(f"Lava: {len(lava_groups)} func_water + trigger_hurt entity pairs")
@@ -1512,6 +1518,8 @@ class MCtoCSApp(ctk.CTk):
                 self._log(f"  Included {len(entity_mesh_pairs)} entity meshes")
             if light_sources:
                 self._log(f"  Included {len(light_sources)} light entities")
+            if use_merge_edges:
+                self._log("  Merge edges enabled for liquid entity meshes")
 
             # Free meshes after writing
             del meshes

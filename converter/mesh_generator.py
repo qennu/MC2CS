@@ -294,6 +294,14 @@ def generate_quads(grid: BlockGrid, scale: float = 64.0,
             geo_lut[idx] = should_generate_geometry(name)
             solid_lut[idx] = is_solid_for_culling(name)
             model_lut[idx] = is_model_block(name)
+            if (not model_lut[idx] and model_generator is not None
+                    and model_generator.is_non_full_cube_model(name)):
+                # Prefer live MC assets over the static registry so newer
+                # Minecraft versions do not need every shaped/decorative block
+                # hard-coded. Full-cube JSON models stay on the fast cube path.
+                geo_lut[idx] = True
+                model_lut[idx] = True
+                solid_lut[idx] = False
             base = get_block_base_name(name)
             water_lut[idx] = (base == "minecraft:water")
             lava_lut[idx] = (base == "minecraft:lava")
@@ -814,6 +822,11 @@ def generate_quads(grid: BlockGrid, scale: float = 64.0,
             is_block_light = not model_lut[blocks[int(bx), int(by), int(bz)]]
 
             if is_block_light:
+                # Dense luminous blocks (for example stacked sea_lanterns) are
+                # throttled to a 2x2x2 checker pattern. This avoids hundreds
+                # of overlapping light_omni2 entities in one compact cluster.
+                if (int(bx) & 1) or (int(by) & 1) or (int(bz) & 1):
+                    continue
                 # Full-block light: place one light per exposed face,
                 # offset 1.5*scale from center (≈1 block from surface).
                 six_dirs = [(1,0,0),(-1,0,0),(0,1,0),(0,-1,0),(0,0,1),(0,0,-1)]

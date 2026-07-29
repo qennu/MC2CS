@@ -208,6 +208,19 @@ def _match_variant_key(variant_key: str, state_props: dict) -> bool:
     return True
 
 
+def _variant_choice(items, block_pos):
+    """Pick one weighted/random model deterministically from the block position."""
+    if not isinstance(items, list):
+        return items
+    if not items:
+        return None
+    if block_pos is None:
+        return items[0]
+    bx, by, bz = block_pos
+    seed = (bx * 73428767) ^ (by * 912931) ^ (bz * 438289)
+    return items[abs(seed) % len(items)]
+
+
 def _match_multipart_when(when: dict, state_props: dict) -> bool:
     """Check if a multipart 'when' condition matches the block state.
 
@@ -242,7 +255,7 @@ class ModelBlockQuadGenerator:
     def close(self):
         self._resolver.close()
 
-    def _get_model_parts(self, block_name: str):
+    def _get_model_parts(self, block_name: str, block_pos: tuple | None = None):
         """Get all model parts for a block, considering its block state.
 
         For multipart blocks (fences, walls): returns parts whose 'when'
@@ -253,10 +266,13 @@ class ModelBlockQuadGenerator:
         or None if not available.
         """
         short_name, state_props = _parse_block_state(block_name)
-        # Cache key includes relevant state properties
+        # Cache key includes relevant state properties. Random-variant blocks
+        # include block_pos so lily pads / flowers keep Minecraft-like variety.
         cache_key = block_name.split("[")[0].replace("minecraft:", "")
         if state_props:
             cache_key += "[" + ",".join(f"{k}={v}" for k, v in sorted(state_props.items())) + "]"
+        if short_name == "lily_pad" and block_pos is not None:
+            cache_key += f"@{block_pos[0]},{block_pos[1]},{block_pos[2]}"
 
         if cache_key in self._geometry_cache:
             return self._geometry_cache[cache_key]
@@ -276,7 +292,7 @@ class ModelBlockQuadGenerator:
                     continue
                 apply = part_def.get("apply", {})
                 if isinstance(apply, list):
-                    apply = apply[0]
+                    apply = _variant_choice(apply, block_pos)
                 model_ref = apply.get("model")
                 if not model_ref:
                     continue
@@ -308,7 +324,7 @@ class ModelBlockQuadGenerator:
                     matched_apply = next(iter(variants.values()))
 
             if isinstance(matched_apply, list):
-                matched_apply = matched_apply[0]
+                matched_apply = _variant_choice(matched_apply, block_pos)
             if isinstance(matched_apply, dict):
                 model_ref = matched_apply.get("model")
                 y_rot = matched_apply.get("y", 0)
@@ -327,6 +343,35 @@ class ModelBlockQuadGenerator:
         parts = self._get_model_parts(block_name)
         return parts is not None
 
+    def is_non_full_cube_model(self, block_name: str) -> bool:
+        """Return True when assets define model geometry that is not a plain cube.
+
+        This allows newer Minecraft versions to work without manually adding
+        every new plant, decoration, cluster, or shaped block to MODEL_BLOCKS.
+        Full-cube models are left on the fast cube path for greedy/culling
+        behavior.
+        """
+        parts = self._get_model_parts(block_name)
+        if not parts:
+            return False
+
+        has_face = False
+        for elements, _textures, _y_rot, _x_rot in parts:
+            if len(elements) != 1:
+                return True
+            elem = elements[0]
+            if elem.get("rotation") is not None:
+                return True
+            from_pos = elem.get("from", [0, 0, 0])
+            to_pos = elem.get("to", [16, 16, 16])
+            faces = elem.get("faces", {})
+            has_face = has_face or bool(faces)
+            if from_pos != [0, 0, 0] or to_pos != [16, 16, 16]:
+                return True
+            if len(faces) != 6:
+                return True
+        return not has_face
+
     def generate_quads(self, block_name: str, block_pos: tuple,
                        scale: float = 64.0, offset: tuple = (0.0, 0.0, 0.0),
                        neighbor_solid: dict = None) -> list[Quad]:
@@ -343,7 +388,7 @@ class ModelBlockQuadGenerator:
         Returns:
             List of Quad objects in CS2 coordinate space.
         """
-        model_parts = self._get_model_parts(block_name)
+        model_parts = self._get_model_parts(block_name, block_pos)
         if model_parts is None:
             return []
 
