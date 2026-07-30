@@ -1379,8 +1379,8 @@ class TexturePackReader:
         alpha = grass_overlay.split()[3]
         if alpha.getextrema() == (255, 255):
             return  # Already opaque — no compositing needed
-        # Preserve the overlay as a separate texture for tint masking
-        self._textures["grass_block_side_overlay"] = grass_overlay.copy()
+        # Do not expose grass_block_side_overlay as a separate CS2 material.
+        # The side texture is composited below, which is enough for this converter.
         # Resize dirt to match grass overlay size
         if dirt.size != grass_overlay.size:
             dirt = dirt.resize(grass_overlay.size, Image.NEAREST)

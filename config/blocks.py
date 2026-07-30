@@ -257,6 +257,9 @@ MODEL_BLOCKS = frozenset({
     "minecraft:medium_amethyst_bud", "minecraft:small_amethyst_bud",
     "minecraft:pointed_dripstone",
     "minecraft:lantern", "minecraft:soul_lantern",
+    "minecraft:cave_vines", "minecraft:cave_vines_plant",
+    "minecraft:cave_vines_lit", "minecraft:cave_vines_plant_lit",
+    "minecraft:sea_pickle",
     "minecraft:campfire", "minecraft:soul_campfire",
     "minecraft:chest", "minecraft:ender_chest", "minecraft:trapped_chest",
     # Beds
@@ -385,6 +388,9 @@ SELF_ILLUMINATED_BLOCKS = frozenset({
     "minecraft:respawn_anchor",
     "minecraft:sculk_catalyst",
     "minecraft:lantern", "minecraft:soul_lantern",
+    "minecraft:cave_vines", "minecraft:cave_vines_plant",
+    "minecraft:cave_vines_lit", "minecraft:cave_vines_plant_lit",
+    "minecraft:sea_pickle",
     "minecraft:campfire", "minecraft:soul_campfire",
     "minecraft:lava",
 })
@@ -417,6 +423,10 @@ LIGHT_EMITTING_BLOCKS = {
     "minecraft:soul_campfire":      (10, "100 200 255", 280),
     # End rod
     "minecraft:end_rod":            (14, "255 255 240", 400),
+    # Glow berries / cave vines emit a gentle aqua-green light in-game.
+    "minecraft:cave_vines_lit":      (14, "128 255 210", 400),
+    "minecraft:cave_vines_plant_lit": (14, "128 255 210", 400),
+    "minecraft:sea_pickle":          (6, "128 255 210", 240),
 }
 
 # Blocks whose meshes should not cast shadows.
@@ -431,6 +441,9 @@ NOSHADOW_MESH_BLOCKS = frozenset({
     "minecraft:crimson_trapdoor", "minecraft:warped_trapdoor",
     "minecraft:mangrove_trapdoor", "minecraft:cherry_trapdoor",
     "minecraft:bamboo_trapdoor", "minecraft:iron_trapdoor",
+    "minecraft:cave_vines", "minecraft:cave_vines_plant",
+    "minecraft:cave_vines_lit", "minecraft:cave_vines_plant_lit",
+    "minecraft:sea_pickle",
 })
 
 
@@ -543,9 +556,7 @@ def get_block_base_name(block_name: str) -> str:
 # Textures that need a tint mask (partial tint via overlay texture).
 # Maps texture name -> overlay texture name in the resource pack.
 # The overlay's alpha channel is used as a grayscale tint mask.
-TINT_MASK_OVERLAYS = {
-    "grass_block_side": "grass_block_side_overlay",
-}
+TINT_MASK_OVERLAYS = {}
 
 
 # Blocks that should get a green color tint in their material
@@ -560,8 +571,6 @@ TINTED_BLOCKS = {
     "acacia_leaves": "[0.396078 0.556863 0.207843 0.000000]",
     "dark_oak_leaves": "[0.337255 0.517647 0.207843 0.000000]",
     "mangrove_leaves": "[0.356863 0.576471 0.207843 0.000000]",
-    "azalea_leaves": "[0.337255 0.517647 0.207843 0.000000]",
-    "flowering_azalea_leaves": "[0.337255 0.517647 0.207843 0.000000]",
     "short_grass": "[0.372549 0.619608 0.207843 0.000000]",
     "tall_grass": "[0.372549 0.619608 0.207843 0.000000]",
     "tall_grass_top": "[0.372549 0.619608 0.207843 0.000000]",
