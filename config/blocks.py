@@ -738,6 +738,7 @@ LIGHT_BLOCKS: dict[str, int] = {
     "soul_fire_0": 10,
     "soul_fire_1": 10,
     "redstone_torch": 7,
+    "redstone_lamp_on": 15,
     "sculk_catalyst_top": 6,
     "amethyst_cluster": 5,
     "large_amethyst_bud": 4,
@@ -761,7 +762,8 @@ def get_glow_power(texture_name: str) -> float:
 def is_self_illuminated(block_name: str) -> bool:
     """Check if block emits light. Works with both block names and texture names."""
     base = block_name.split("[")[0] if "[" in block_name else block_name
-    if base == "minecraft:redstone_lamp" and "lit=true" not in block_name:
+    if base in {"minecraft:cave_vines", "minecraft:cave_vines_plant",
+                "minecraft:cave_vines_lit", "minecraft:cave_vines_plant_lit"}:
         return False
     if base in SELF_ILLUMINATED_BLOCKS:
         return True

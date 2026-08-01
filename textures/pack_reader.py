@@ -1067,6 +1067,8 @@ class TexturePackReader:
                     and name.endswith(".png.mcmeta")):
                 rel = name[len(self.BLOCK_TEXTURE_PATH):]
                 bn = rel.replace(".png.mcmeta", "")
+                if "overlay" in bn.lower():
+                    continue
                 if "/" not in bn:
                     try:
                         with zf.open(name) as f:
@@ -1083,6 +1085,8 @@ class TexturePackReader:
                 continue
             rel = name[len(self.BLOCK_TEXTURE_PATH):]
             bn = os.path.splitext(rel)[0]
+            if "overlay" in bn.lower():
+                continue
             if "/" in bn:
                 continue
             try:
@@ -1114,6 +1118,8 @@ class TexturePackReader:
         for fn in os.listdir(tex_dir):
             if fn.endswith(".png.mcmeta"):
                 bn = fn.replace(".png.mcmeta", "")
+                if "overlay" in bn.lower():
+                    continue
                 try:
                     with open(os.path.join(tex_dir, fn), "r",
                               encoding="utf-8") as f:
@@ -1127,6 +1133,8 @@ class TexturePackReader:
             if not fn.lower().endswith(".png"):
                 continue
             bn = os.path.splitext(fn)[0]
+            if "overlay" in bn.lower():
+                continue
             try:
                 img = Image.open(os.path.join(tex_dir, fn)).copy()
                 self._ingest_java_texture(bn, img, mcmeta_data)
@@ -1191,6 +1199,8 @@ class TexturePackReader:
             if len(parts) > 2:
                 continue
             base = os.path.splitext(parts[-1])[0]
+            if "overlay" in base.lower():
+                continue
             # For files in subdirectories, the key for PBR lookup uses subdir prefix
             rel_base = os.path.splitext(rel.replace("\\", "/"))[0]
             if _BEDROCK_SKIP_RE.search(base) and base not in _BEDROCK_NOT_PBR:
@@ -1299,6 +1309,8 @@ class TexturePackReader:
             if len(parts) > 2:
                 continue
             base = os.path.splitext(parts[-1])[0]
+            if "overlay" in base.lower():
+                continue
             rel_base = os.path.splitext(rel)[0]
             if _BEDROCK_SKIP_RE.search(base) and base not in _BEDROCK_NOT_PBR:
                 continue
@@ -1379,8 +1391,6 @@ class TexturePackReader:
         alpha = grass_overlay.split()[3]
         if alpha.getextrema() == (255, 255):
             return  # Already opaque — no compositing needed
-        # Do not expose grass_block_side_overlay as a separate CS2 material.
-        # The side texture is composited below, which is enough for this converter.
         # Resize dirt to match grass overlay size
         if dirt.size != grass_overlay.size:
             dirt = dirt.resize(grass_overlay.size, Image.NEAREST)
