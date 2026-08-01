@@ -62,6 +62,7 @@ TRANSPARENT_BLOCKS = frozenset({
     "minecraft:cherry_sapling", "minecraft:pale_oak_sapling",
     "minecraft:brown_mushroom", "minecraft:red_mushroom",
     "minecraft:torch", "minecraft:wall_torch",
+    "minecraft:lantern", "minecraft:soul_lantern",
     "minecraft:soul_torch", "minecraft:soul_wall_torch",
     "minecraft:redstone_torch", "minecraft:redstone_wall_torch",
     "minecraft:lantern", "minecraft:soul_lantern",
@@ -125,6 +126,14 @@ TRANSPARENT_BLOCKS = frozenset({
     "minecraft:potted_fern", "minecraft:potted_dead_bush",
     "minecraft:potted_cactus", "minecraft:potted_azalea_bush",
     "minecraft:potted_flowering_azalea_bush", "minecraft:potted_torchflower",
+    "minecraft:azalea", "minecraft:flowering_azalea",
+    "minecraft:pink_petals", "minecraft:nether_sprouts",
+    "minecraft:warped_roots", "minecraft:crimson_roots",
+    "minecraft:warped_fungus", "minecraft:crimson_fungus",
+    "minecraft:spore_blossom",
+    "minecraft:amethyst_cluster", "minecraft:large_amethyst_bud",
+    "minecraft:medium_amethyst_bud", "minecraft:small_amethyst_bud",
+    "minecraft:pointed_dripstone",
 })
 
 # Non-solid blocks (no geometry, treated like air for face culling)
@@ -157,6 +166,7 @@ NON_SOLID_BLOCKS = frozenset({
 # These are non-full-cube blocks with model-based meshes (torches, fences, slabs, etc.)
 MODEL_BLOCKS = frozenset({
     "minecraft:torch", "minecraft:wall_torch",
+    "minecraft:lantern", "minecraft:soul_lantern",
     "minecraft:soul_torch", "minecraft:soul_wall_torch",
     "minecraft:redstone_torch", "minecraft:redstone_wall_torch",
     "minecraft:lever",
@@ -238,6 +248,14 @@ MODEL_BLOCKS = frozenset({
     "minecraft:brown_carpet", "minecraft:green_carpet", "minecraft:red_carpet",
     "minecraft:black_carpet", "minecraft:moss_carpet",
     "minecraft:lily_pad",
+    "minecraft:azalea", "minecraft:flowering_azalea",
+    "minecraft:pink_petals", "minecraft:nether_sprouts",
+    "minecraft:warped_roots", "minecraft:crimson_roots",
+    "minecraft:warped_fungus", "minecraft:crimson_fungus",
+    "minecraft:spore_blossom",
+    "minecraft:amethyst_cluster", "minecraft:large_amethyst_bud",
+    "minecraft:medium_amethyst_bud", "minecraft:small_amethyst_bud",
+    "minecraft:pointed_dripstone",
     "minecraft:lantern", "minecraft:soul_lantern",
     "minecraft:campfire", "minecraft:soul_campfire",
     "minecraft:chest", "minecraft:ender_chest", "minecraft:trapped_chest",
@@ -399,11 +417,16 @@ LIGHT_EMITTING_BLOCKS = {
     "minecraft:soul_campfire":      (10, "100 200 255", 280),
     # End rod
     "minecraft:end_rod":            (14, "255 255 240", 400),
+    "minecraft:cave_vines_lit":      (14, "180 255 214", 640),
+    "minecraft:cave_vines_plant_lit": (14, "180 255 214", 640),
+    "minecraft:sea_pickle":          (15, "180 255 214", 640),
+    "minecraft:light":               (15, "255 255 255", 75),
 }
 
 # Blocks whose meshes should not cast shadows.
 NOSHADOW_MESH_BLOCKS = frozenset({
     "minecraft:torch", "minecraft:wall_torch",
+    "minecraft:lantern", "minecraft:soul_lantern",
     "minecraft:soul_torch", "minecraft:soul_wall_torch",
     "minecraft:redstone_torch", "minecraft:redstone_wall_torch",
     "minecraft:oak_trapdoor", "minecraft:spruce_trapdoor",
@@ -412,6 +435,9 @@ NOSHADOW_MESH_BLOCKS = frozenset({
     "minecraft:crimson_trapdoor", "minecraft:warped_trapdoor",
     "minecraft:mangrove_trapdoor", "minecraft:cherry_trapdoor",
     "minecraft:bamboo_trapdoor", "minecraft:iron_trapdoor",
+    "minecraft:cave_vines", "minecraft:cave_vines_plant",
+    "minecraft:cave_vines_lit", "minecraft:cave_vines_plant_lit",
+    "minecraft:sea_pickle",
 })
 
 
@@ -442,6 +468,35 @@ def _build_self_illum_texture_names() -> frozenset:
 
 _SELF_ILLUMINATED_TEXTURE_NAMES = _build_self_illum_texture_names()
 
+
+
+def get_surface_property(texture_name: str) -> str:
+    """Return a CS/Source-style surface property for a Minecraft texture name."""
+    name = texture_name.split("[")[0]
+    name = name[len("minecraft:"):] if name.startswith("minecraft:") else name
+    if any(k in name for k in ("water", "kelp", "seagrass")):
+        return "water"
+    if "lava" in name:
+        return "default"
+    if any(k in name for k in ("glass", "ice")):
+        return "glass"
+    if any(k in name for k in ("log", "wood", "planks", "stem", "hyphae", "bamboo", "door", "fence", "chest")):
+        return "wood"
+    if any(k in name for k in ("sand", "gravel", "concrete_powder")):
+        return "sand"
+    if any(k in name for k in ("dirt", "mud", "clay", "farmland", "podzol", "mycelium")):
+        return "dirt"
+    if any(k in name for k in ("grass", "leaves", "vine", "azalea", "roots", "sprouts", "petals", "flower", "mushroom", "fungus", "crop", "wheat")):
+        return "grass"
+    if any(k in name for k in ("iron", "gold", "copper", "metal", "anvil", "chain", "lantern")):
+        return "metal"
+    if any(k in name for k in ("wool", "carpet")):
+        return "carpet"
+    if any(k in name for k in ("snow",)):
+        return "snow"
+    if any(k in name for k in ("stone", "deepslate", "granite", "diorite", "andesite", "tuff", "basalt", "blackstone", "dripstone", "amethyst", "ore", "brick", "quartz", "prismarine", "lantern")):
+        return "rock"
+    return "default"
 
 def is_air(block_name: str) -> bool:
     """Check if block is air (or structure void)."""
@@ -495,25 +550,14 @@ def get_block_base_name(block_name: str) -> str:
 # Textures that need a tint mask (partial tint via overlay texture).
 # Maps texture name -> overlay texture name in the resource pack.
 # The overlay's alpha channel is used as a grayscale tint mask.
-TINT_MASK_OVERLAYS = {
-    "grass_block_side": "grass_block_side_overlay",
-}
+TINT_MASK_OVERLAYS = {}
 
 
 # Blocks that should get a green color tint in their material
 # (they are grey/white in the texture pack and tinted in-game)
 TINTED_BLOCKS = {
     "grass_block_top": "[0.372549 0.619608 0.207843 0.000000]",
-    "grass_block_side": "[0.372549 0.619608 0.207843 0.000000]",
-    "oak_leaves": "[0.337255 0.517647 0.207843 0.000000]",
-    "spruce_leaves": "[0.380392 0.509804 0.337255 0.000000]",
-    "birch_leaves": "[0.505882 0.584314 0.341176 0.000000]",
-    "jungle_leaves": "[0.207843 0.552941 0.145098 0.000000]",
-    "acacia_leaves": "[0.396078 0.556863 0.207843 0.000000]",
-    "dark_oak_leaves": "[0.337255 0.517647 0.207843 0.000000]",
-    "mangrove_leaves": "[0.356863 0.576471 0.207843 0.000000]",
-    "azalea_leaves": "[0.337255 0.517647 0.207843 0.000000]",
-    "flowering_azalea_leaves": "[0.337255 0.517647 0.207843 0.000000]",
+    "jungle_leaves": "[0.337255 0.517647 0.207843 0.000000]",
     "short_grass": "[0.372549 0.619608 0.207843 0.000000]",
     "tall_grass": "[0.372549 0.619608 0.207843 0.000000]",
     "tall_grass_top": "[0.372549 0.619608 0.207843 0.000000]",
@@ -529,6 +573,9 @@ TINTED_BLOCKS = {
     "melon_stem": "[0.372549 0.619608 0.207843 0.000000]",
     "attached_pumpkin_stem": "[0.372549 0.619608 0.207843 0.000000]",
     "attached_melon_stem": "[0.372549 0.619608 0.207843 0.000000]",
+    "redstone_dust_dot": "[0.760784 0.000000 0.000000 0.000000]",
+    "redstone_dust_line0": "[0.760784 0.000000 0.000000 0.000000]",
+    "redstone_dust_line1": "[0.760784 0.000000 0.000000 0.000000]",
     "water_still": "[0.247059 0.462745 0.894118 0.000000]",
     "water_flow": "[0.247059 0.462745 0.894118 0.000000]",
     "lava_still": "[1.000000 1.000000 1.000000 0.000000]",
@@ -547,6 +594,8 @@ def get_texture_name(block_name: str) -> str:
         short = base[len("minecraft:"):]
     else:
         short = base
+    if short == "redstone_lamp":
+        return "redstone_lamp_on"
     # Check if this block has a different texture name than its block name
     return TEXTURE_REMAP.get(short, short)
 
@@ -557,6 +606,10 @@ def get_texture_name_for_face(block_name: str, face_dir: str) -> str:
     """
     base = get_block_base_name(block_name)
     short = base[len("minecraft:"):] if base.startswith("minecraft:") else base
+    if short == "water" and face_dir in {"+x", "-x", "+z", "-z"}:
+        return "water_flow"
+    if short == "lava" and face_dir in {"+x", "-x", "+z", "-z"}:
+        return "lava_flow"
     if short in FACE_TEXTURE_MAP:
         face_map = FACE_TEXTURE_MAP[short]
         if face_dir in face_map:
@@ -623,6 +676,19 @@ FORCED_TRANSLUCENT_TEXTURES: frozenset = frozenset({
     "fire_coral_fan", "horn_coral_fan",
     "dead_tube_coral_fan", "dead_brain_coral_fan", "dead_bubble_coral_fan",
     "dead_fire_coral_fan", "dead_horn_coral_fan",
+    "azalea_plant", "azalea_side", "azalea_top", "flowering_azalea_side", "flowering_azalea_top",
+    "pink_petals", "nether_sprouts", "warped_roots", "crimson_roots",
+    "warped_fungus", "crimson_fungus", "spore_blossom", "spore_blossom_base",
+    "amethyst_cluster", "large_amethyst_bud", "medium_amethyst_bud", "small_amethyst_bud",
+    "pointed_dripstone_up_tip", "pointed_dripstone_up_frustum", "pointed_dripstone_up_middle", "pointed_dripstone_up_base",
+    "pointed_dripstone_down_tip", "pointed_dripstone_down_frustum", "pointed_dripstone_down_middle", "pointed_dripstone_down_base",
+    "oak_door_top", "oak_door_bottom", "spruce_door_top", "spruce_door_bottom",
+    "birch_door_top", "birch_door_bottom", "jungle_door_top", "jungle_door_bottom",
+    "acacia_door_top", "acacia_door_bottom", "dark_oak_door_top", "dark_oak_door_bottom",
+    "crimson_door_top", "crimson_door_bottom", "warped_door_top", "warped_door_bottom",
+    "mangrove_door_top", "mangrove_door_bottom", "cherry_door_top", "cherry_door_bottom",
+    "bamboo_door_top", "bamboo_door_bottom", "iron_door_top", "iron_door_bottom",
+    "twisting_vines", "twisting_vines_plant", "weeping_vines", "weeping_vines_plant",
 })
 
 
@@ -636,7 +702,7 @@ def get_color_tint(texture_name: str) -> str | None:
     return TINTED_BLOCKS.get(texture_name)
 
 
-# Light-emitting blocks with glow strength (0-15 scale, converted to 0-1).  
+# Light-emitting blocks with glow strength (0-15 scale, converted to 0-1).
 # Blocks in this dict always get F_SELF_ILLUM with brightness = value/15.
 LIGHT_BLOCKS: dict[str, int] = {
     "lava_still": 15,
@@ -745,7 +811,6 @@ DAMAGE_BLOCKS = frozenset({
     "minecraft:sweet_berry_bush",
     "minecraft:campfire",
     "minecraft:soul_campfire",
-    "minecraft:pointed_dripstone",
 })
 
 
@@ -842,6 +907,7 @@ _NON_SOLID_MODEL_BLOCKS = frozenset({
     "minecraft:dead_bush",
     # Torches
     "minecraft:torch", "minecraft:wall_torch",
+    "minecraft:lantern", "minecraft:soul_lantern",
     "minecraft:soul_torch", "minecraft:soul_wall_torch",
     "minecraft:redstone_torch", "minecraft:redstone_wall_torch",
     # Rails

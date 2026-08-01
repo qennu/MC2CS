@@ -944,6 +944,10 @@ class VMapWriter:
                 lumens = int(lumens * scale_factor)
                 # Range = 62.5% of base lumens, scaled (250 range for 400 lumen torch)
                 light_range = props[2] * 0.625 * scale_factor
+                base_name = block_name.split("[")[0] if "[" in block_name else block_name
+                if base_name in {"minecraft:cave_vines_lit", "minecraft:cave_vines_plant_lit",
+                                 "minecraft:cave_vines", "minecraft:sea_pickle", "minecraft:light"}:
+                    light_range = 400
                 node_id = self._write_light_entity(
                     lx, ly, lz, color, lumens, light_range, node_id)
                 if li < len(light_sources) - 1:

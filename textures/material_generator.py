@@ -10,7 +10,7 @@ from config.defaults import DEFAULT_MATERIAL
 from config.blocks import (get_texture_name, get_texture_name_for_face, get_color_tint,
                            is_self_illuminated, is_translucent, FACE_TEXTURE_MAP,
                            TEXTURE_REMAP, get_block_base_name, TINT_MASK_OVERLAYS,
-                           is_forced_translucent, TRANSPARENT_BLOCKS, get_glow_power)
+                           is_forced_translucent, TRANSPARENT_BLOCKS, get_glow_power, get_surface_property)
 
 # Texture name patterns that need F_RENDER_BACKFACES (visible from both sides).
 # Primarily plants, leaves, and thin geometry rendered as quads.
@@ -18,8 +18,9 @@ _BACKFACE_PATTERNS = frozenset({
     "vine", "vines", "short_grass", "tall_grass", "fern", "bush", "sapling",
     "tulip", "dandelion", "poppy", "orchid", "allium", "bluet", "daisy",
     "cornflower", "lily_of_the_valley", "rose", "lily_pad", "cobweb",
-    "sugar_cane", "kelp", "seagrass", "dead_bush", "bamboo",
-    "azalea", "spore_blossom", "dripleaf", "hanging_roots",
+    "sugar_cane", "kelp", "seagrass", "dead_bush",
+    "spore_blossom", "dripleaf", "hanging_roots", "roots", "sprouts",
+    "fungus", "amethyst", "dripstone",
     "glow_lichen", "sculk_vein", "torch", "lantern",
     # Crops
     "wheat", "carrots", "potatoes", "beetroots", "nether_wart",
@@ -31,6 +32,8 @@ _BACKFACE_PATTERNS = frozenset({
 
 def _needs_render_backfaces(block_name: str) -> bool:
     """Return True if this texture needs backface rendering."""
+    if block_name == "sea_lantern" or block_name.endswith("_leaves"):
+        return False
     for pat in _BACKFACE_PATTERNS:
         if pat in block_name:
             return True
@@ -50,7 +53,8 @@ def _generate_vmat_content(texture_path: str, *,
                            animated: bool = False,
                            animation_grid: tuple[int, int] | None = None,
                            animation_cells: int = 0,
-                           animation_frametime: float = 0.1) -> str:
+                           animation_frametime: float = 0.1,
+                           surface_property: str = "default") -> str:
     """Generate .vmat file content based on block properties."""
     lines = ["// THIS FILE IS AUTO-GENERATED", "", "Layer0", "{"]
 
@@ -175,6 +179,13 @@ def _generate_vmat_content(texture_path: str, *,
         lines.append('\tg_flAlphaTestReference "0.500"')
         lines.append(f'\tTextureTranslucency "{translucency_path}"')
 
+    if surface_property and surface_property != "default":
+        lines.append("")
+        lines.append("\tSystemAttributes")
+        lines.append("\t{")
+        lines.append(f'\t\tPhysicsSurfaceProperties "{surface_property}"')
+        lines.append("\t}")
+
     lines.append("}")
     return "\n".join(lines) + "\n"
 
@@ -196,7 +207,8 @@ def _generate_pbr_vmat_content(texture_path: str, *,
                                 animated: bool = False,
                                 animation_grid: tuple[int, int] | None = None,
                                 animation_cells: int = 0,
-                                animation_frametime: float = 0.1) -> str:
+                                animation_frametime: float = 0.1,
+                                surface_property: str = "default") -> str:
     """Generate a PBR .vmat for Bedrock RTX packs (metalness, roughness, emissive, normal)."""
     lines = ["// THIS FILE IS AUTO-GENERATED (PBR from Bedrock RTX)", "", "Layer0", "{"]
 
@@ -331,6 +343,13 @@ def _generate_pbr_vmat_content(texture_path: str, *,
         lines.append("\t//---- Alpha Test ----")
         lines.append('\tg_flAlphaTestReference "0.500"')
         lines.append(f'\tTextureTranslucency "{translucency_path}"')
+
+    if surface_property and surface_property != "default":
+        lines.append("")
+        lines.append("\tSystemAttributes")
+        lines.append("\t{")
+        lines.append(f'\t\tPhysicsSurfaceProperties "{surface_property}"')
+        lines.append("\t}")
 
     lines.append("}")
     return "\n".join(lines) + "\n"
@@ -487,14 +506,16 @@ class MaterialGenerator:
                     # Also include the raw name so packs with the original
                     # texture (e.g. kelp_plant) still get their own material.
                     needed.add(short)
-            # Always export water_flow alongside water_still so func_water
-            # entities can reference the flowing animation.
+            # Always export flow variants alongside still liquid textures so
+            # liquid entities/material lists can reference animated flow art.
             if "water_still" in needed:
                 needed.add("water_flow")
+            if "lava_still" in needed:
+                needed.add("lava_flow")
             texture_names = [n for n in self.texture_reader.texture_names
-                             if n in needed and self.texture_reader.has_texture(n)]
+                             if n in needed and "overlay" not in n and self.texture_reader.has_texture(n)]
         else:
-            texture_names = self.texture_reader.texture_names
+            texture_names = [n for n in self.texture_reader.texture_names if "overlay" not in n]
 
         mat_dir = os.path.join(addon_folder, "materials", map_name)
         os.makedirs(mat_dir, exist_ok=True)
@@ -512,6 +533,9 @@ class MaterialGenerator:
             is_anim = self.texture_reader.is_animated(block_name)
             is_trans = is_translucent(block_key) or is_forced_translucent(block_name)
             is_illum = is_self_illuminated(block_key)
+            if block_name == "fire_0":
+                is_illum = True
+                is_trans = True
             glow = get_glow_power(block_name)
             if glow > 0:
                 is_illum = True
@@ -519,6 +543,7 @@ class MaterialGenerator:
             use_pbr = (self.texture_reader.is_bedrock
                        and self.texture_reader.has_mer(block_name))
             backfaces = _needs_render_backfaces(block_name)
+            surface_prop = get_surface_property(block_name)
 
             # Also check actual image alpha for translucency
             if not is_trans and img.mode == "RGBA":
@@ -661,6 +686,7 @@ class MaterialGenerator:
                         animation_grid=(grid_cols, grid_rows),
                         animation_cells=frame_count,
                         animation_frametime=frametime,
+                        surface_property=surface_prop,
                     )
                 else:
                     vmat_content = _generate_vmat_content(
@@ -678,6 +704,7 @@ class MaterialGenerator:
                         animation_grid=(grid_cols, grid_rows),
                         animation_cells=frame_count,
                         animation_frametime=frametime,
+                        surface_property=surface_prop,
                     )
             else:
                 if img.mode != "RGBA":
@@ -690,8 +717,18 @@ class MaterialGenerator:
 
                 texture_ref = f"{material_prefix}{png_filename}"
 
+                if block_name == "fire_0" and self.texture_reader.has_texture("fire_0_illum"):
+                    illum_img = self.texture_reader.get_texture("fire_0_illum")
+                    if illum_img is not None:
+                        if illum_img.mode != "RGBA":
+                            illum_img = illum_img.convert("RGBA")
+                        illum_img = illum_img.resize((texture_size, texture_size), Image.NEAREST)
+                        illum_mask_fn = "fire_0_illum.png"
+                        illum_img.save(os.path.join(mat_dir, illum_mask_fn), format="PNG")
+                        trans_ref = f"{material_prefix}{illum_mask_fn}"
+                        illum_ref = trans_ref
                 if is_trans or use_alpha_test:
-                    trans_ref = self._save_alpha_mask(resized, block_name, "_trans", mat_dir, material_prefix)
+                    trans_ref = trans_ref or self._save_alpha_mask(resized, block_name, "_trans", mat_dir, material_prefix)
                 if is_illum and not illum_ref:
                     illum_ref = self._save_alpha_mask(resized, block_name, "_illum", mat_dir, material_prefix)
 
@@ -711,6 +748,7 @@ class MaterialGenerator:
                         translucency_path=trans_ref,
                         color_tint=tint,
                         tint_mask_path=tint_mask_ref,
+                        surface_property=surface_prop,
                     )
                 else:
                     vmat_content = _generate_vmat_content(
@@ -724,6 +762,7 @@ class MaterialGenerator:
                         glow_power=glow,
                         color_tint=tint,
                         tint_mask_path=tint_mask_ref,
+                        surface_property=surface_prop,
                     )
 
             vmat_filename = f"{block_name}.vmat"
@@ -797,6 +836,7 @@ class MaterialGenerator:
             use_pbr = (self.texture_reader.is_bedrock
                        and self.texture_reader.has_mer(block_name))
             backfaces = _needs_render_backfaces(block_name)
+            surface_prop = get_surface_property(block_name)
 
             rough_ref = ""
             normal_ref = ""
@@ -911,6 +951,7 @@ class MaterialGenerator:
                         animation_cells=frame_count,
                         animation_frametime=frametime,
                         render_backfaces=backfaces,
+                        surface_property=surface_prop,
                     )
                 else:
                     vmat_content = _generate_vmat_content(
@@ -927,6 +968,7 @@ class MaterialGenerator:
                         animation_cells=frame_count,
                         animation_frametime=frametime,
                         render_backfaces=backfaces,
+                        surface_property=surface_prop,
                     )
             else:
                 if img.mode != "RGBA":
@@ -969,6 +1011,7 @@ class MaterialGenerator:
                         translucency_path=trans_ref,
                         color_tint=tint,
                         render_backfaces=backfaces,
+                        surface_property=surface_prop,
                     )
                 else:
                     vmat_content = _generate_vmat_content(
@@ -981,6 +1024,7 @@ class MaterialGenerator:
                         glow_power=glow,
                         color_tint=tint,
                         render_backfaces=backfaces,
+                        surface_property=surface_prop,
                     )
 
             vmat_filename = f"{block_name}.vmat"
