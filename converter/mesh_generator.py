@@ -248,7 +248,8 @@ def generate_quads(grid: BlockGrid, scale: float = 64.0,
                    generate_climbable: bool = False,
                    generate_slime: bool = False,
                    generate_stair_clips: bool = False,
-                   generate_lights: bool = False) -> tuple:
+                   generate_lights: bool = False,
+                   generate_fence_clips: bool = False) -> tuple:
     """Generate face quads from a BlockGrid using numpy-vectorized face culling.
 
     Args:
@@ -289,6 +290,7 @@ def generate_quads(grid: BlockGrid, scale: float = 64.0,
     stair_lut = np.zeros(max_idx, dtype=bool)
     half_height_lut = np.zeros(max_idx, dtype=bool)
     barrier_lut = np.zeros(max_idx, dtype=bool)
+    fence_lut = np.zeros(max_idx, dtype=bool)
     for idx, name in palette.items():
         if idx < max_idx:
             geo_lut[idx] = should_generate_geometry(name)
@@ -313,6 +315,8 @@ def generate_quads(grid: BlockGrid, scale: float = 64.0,
             stair_lut[idx] = is_stair_block(name)
             half_height_lut[idx] = is_half_height_block(name)
             barrier_lut[idx] = is_barrier_block(name)
+            short_base = base[len("minecraft:"):] if base.startswith("minecraft:") else base
+            fence_lut[idx] = short_base.endswith("_fence") or short_base == "nether_brick_fence"
 
     light_lut = np.zeros(max_idx, dtype=bool)
     if generate_lights:
@@ -332,6 +336,7 @@ def generate_quads(grid: BlockGrid, scale: float = 64.0,
     stair_mask = stair_lut[blocks]
     half_height_mask = half_height_lut[blocks]
     barrier_mask = barrier_lut[blocks]
+    fence_mask = fence_lut[blocks]
     liquid_mask = water_mask | lava_mask
 
     if separate_liquids:
@@ -743,6 +748,20 @@ def generate_quads(grid: BlockGrid, scale: float = 64.0,
                                         y_base=0, y_top=slab_height * 0.5,
                                         bridge=True))
 
+
+    # --- Fence clips: fixed 68-HU invisible no-hole blockers to prevent fence hopping. ---
+    if generate_fence_clips and np.any(fence_mask):
+        clip_height = 68.0 / scale
+        fence_positions = np.argwhere(fence_mask)
+        for i in range(len(fence_positions)):
+            bx, by, bz = fence_positions[i]
+            block = palette[int(blocks[bx, by, bz])]
+            bp = (int(bx), int(by), int(bz))
+            stair_clip_quads.extend(
+                _generate_box_quads(int(bx), int(by), int(bz),
+                                   0, 0, 0, 1, clip_height, 1,
+                                   block, scale, offset, bp))
+
     # --- Barrier blocks: invisible full-cube clip brushes ---
     if np.any(barrier_mask):
         barrier_positions = np.argwhere(barrier_mask)
@@ -818,6 +837,14 @@ def generate_quads(grid: BlockGrid, scale: float = 64.0,
             mx = (bx + 0.5) * scale
             my = (by + 0.5) * scale
             mz = (bz + 0.5) * scale
+
+            base = get_block_base_name(block)
+            if base == "minecraft:light":
+                cs2_x = mx + ox
+                cs2_y = -mz + oy
+                cs2_z = my + oz
+                light_sources.append((cs2_x, cs2_y, cs2_z, block))
+                continue
 
             is_block_light = not model_lut[blocks[int(bx), int(by), int(bz)]]
 

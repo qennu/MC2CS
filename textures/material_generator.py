@@ -19,8 +19,8 @@ _BACKFACE_PATTERNS = frozenset({
     "tulip", "dandelion", "poppy", "orchid", "allium", "bluet", "daisy",
     "cornflower", "lily_of_the_valley", "rose", "lily_pad", "cobweb",
     "sugar_cane", "kelp", "seagrass", "dead_bush",
-    "azalea", "spore_blossom", "dripleaf", "hanging_roots",
-    "sprouts", "roots", "fungus", "petals", "dripstone",
+    "spore_blossom", "dripleaf", "hanging_roots", "roots", "sprouts",
+    "fungus", "amethyst", "dripstone",
     "glow_lichen", "sculk_vein", "torch", "lantern",
     # Crops
     "wheat", "carrots", "potatoes", "beetroots", "nether_wart",
@@ -191,11 +191,12 @@ def _generate_vmat_content(texture_path: str, *,
         lines.append('\tg_flAlphaTestReference "0.500"')
         lines.append(f'\tTextureTranslucency "{translucency_path}"')
 
-    lines.append("")
-    lines.append("\tSystemAttributes")
-    lines.append("\t{")
-    lines.append(f'\t\tPhysicsSurfaceProperties "{surface_property}"')
-    lines.append("\t}")
+    if surface_property and surface_property != "default":
+        lines.append("")
+        lines.append("\tSystemAttributes")
+        lines.append("\t{")
+        lines.append(f'\t\tPhysicsSurfaceProperties "{surface_property}"')
+        lines.append("\t}")
 
     lines.append("}")
     return "\n".join(lines) + "\n"
@@ -358,11 +359,12 @@ def _generate_pbr_vmat_content(texture_path: str, *,
         lines.append('\tg_flAlphaTestReference "0.500"')
         lines.append(f'\tTextureTranslucency "{translucency_path}"')
 
-    lines.append("")
-    lines.append("\tSystemAttributes")
-    lines.append("\t{")
-    lines.append(f'\t\tPhysicsSurfaceProperties "{surface_property}"')
-    lines.append("\t}")
+    if surface_property and surface_property != "default":
+        lines.append("")
+        lines.append("\tSystemAttributes")
+        lines.append("\t{")
+        lines.append(f'\t\tPhysicsSurfaceProperties "{surface_property}"')
+        lines.append("\t}")
 
     lines.append("}")
     return "\n".join(lines) + "\n"
@@ -536,7 +538,7 @@ class MaterialGenerator:
             if "lava_still" in needed:
                 needed.add("lava_flow")
             texture_names = [n for n in self.texture_reader.texture_names
-                             if n in needed and self.texture_reader.has_texture(n)]
+                             if n in needed and "overlay" not in n and self.texture_reader.has_texture(n)]
         else:
             texture_names = self.texture_reader.texture_names
 
@@ -556,6 +558,9 @@ class MaterialGenerator:
             is_anim = self.texture_reader.is_animated(block_name)
             is_trans = is_translucent(block_key) or is_forced_translucent(block_name)
             is_illum = is_self_illuminated(block_key)
+            if block_name == "fire_0":
+                is_illum = True
+                is_trans = True
             glow = get_glow_power(block_name)
             if glow > 0:
                 is_illum = True
@@ -743,8 +748,18 @@ class MaterialGenerator:
 
                 texture_ref = f"{material_prefix}{png_filename}"
 
+                if block_name == "fire_0" and self.texture_reader.has_texture("fire_0_illum"):
+                    illum_img = self.texture_reader.get_texture("fire_0_illum")
+                    if illum_img is not None:
+                        if illum_img.mode != "RGBA":
+                            illum_img = illum_img.convert("RGBA")
+                        illum_img = illum_img.resize((texture_size, texture_size), Image.NEAREST)
+                        illum_mask_fn = "fire_0_illum.png"
+                        illum_img.save(os.path.join(mat_dir, illum_mask_fn), format="PNG")
+                        trans_ref = f"{material_prefix}{illum_mask_fn}"
+                        illum_ref = trans_ref
                 if is_trans or use_alpha_test:
-                    trans_ref = self._save_alpha_mask(resized, block_name, "_trans", mat_dir, material_prefix)
+                    trans_ref = trans_ref or self._save_alpha_mask(resized, block_name, "_trans", mat_dir, material_prefix)
                 if is_illum and not illum_ref:
                     illum_ref = self._save_alpha_mask(resized, block_name, "_illum", mat_dir, material_prefix)
 

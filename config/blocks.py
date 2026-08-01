@@ -257,9 +257,6 @@ MODEL_BLOCKS = frozenset({
     "minecraft:medium_amethyst_bud", "minecraft:small_amethyst_bud",
     "minecraft:pointed_dripstone",
     "minecraft:lantern", "minecraft:soul_lantern",
-    "minecraft:cave_vines", "minecraft:cave_vines_plant",
-    "minecraft:cave_vines_lit", "minecraft:cave_vines_plant_lit",
-    "minecraft:sea_pickle",
     "minecraft:campfire", "minecraft:soul_campfire",
     "minecraft:chest", "minecraft:ender_chest", "minecraft:trapped_chest",
     # Beds
@@ -423,10 +420,10 @@ LIGHT_EMITTING_BLOCKS = {
     "minecraft:soul_campfire":      (10, "100 200 255", 280),
     # End rod
     "minecraft:end_rod":            (14, "255 255 240", 400),
-    # Glow berries / cave vines emit a gentle aqua-green light in-game.
-    "minecraft:cave_vines_lit":      (14, "128 255 210", 400),
-    "minecraft:cave_vines_plant_lit": (14, "128 255 210", 400),
-    "minecraft:sea_pickle":          (6, "128 255 210", 240),
+    "minecraft:cave_vines_lit":      (14, "180 255 214", 640),
+    "minecraft:cave_vines_plant_lit": (14, "180 255 214", 640),
+    "minecraft:sea_pickle":          (15, "180 255 214", 640),
+    "minecraft:light":               (15, "255 255 255", 75),
 }
 
 # Blocks whose meshes should not cast shadows.
@@ -450,12 +447,16 @@ NOSHADOW_MESH_BLOCKS = frozenset({
 def is_light_source(block_name: str) -> bool:
     """Check if a block emits light for auto-lighting."""
     base = block_name.split("[")[0] if "[" in block_name else block_name
+    if base == "minecraft:redstone_lamp":
+        return "lit=true" in block_name
     return base in LIGHT_EMITTING_BLOCKS
 
 
 def get_light_properties(block_name: str):
     """Get light properties for a block. Returns (level, color, lumens) or None."""
     base = block_name.split("[")[0] if "[" in block_name else block_name
+    if base == "minecraft:redstone_lamp" and "lit=true" not in block_name:
+        return None
     return LIGHT_EMITTING_BLOCKS.get(base)
 
 
@@ -563,14 +564,7 @@ TINT_MASK_OVERLAYS = {}
 # (they are grey/white in the texture pack and tinted in-game)
 TINTED_BLOCKS = {
     "grass_block_top": "[0.372549 0.619608 0.207843 0.000000]",
-    "grass_block_side": "[0.372549 0.619608 0.207843 0.000000]",
-    "oak_leaves": "[0.337255 0.517647 0.207843 0.000000]",
-    "spruce_leaves": "[0.380392 0.509804 0.337255 0.000000]",
-    "birch_leaves": "[0.505882 0.584314 0.341176 0.000000]",
     "jungle_leaves": "[0.207843 0.552941 0.145098 0.000000]",
-    "acacia_leaves": "[0.396078 0.556863 0.207843 0.000000]",
-    "dark_oak_leaves": "[0.337255 0.517647 0.207843 0.000000]",
-    "mangrove_leaves": "[0.356863 0.576471 0.207843 0.000000]",
     "short_grass": "[0.372549 0.619608 0.207843 0.000000]",
     "tall_grass": "[0.372549 0.619608 0.207843 0.000000]",
     "tall_grass_top": "[0.372549 0.619608 0.207843 0.000000]",
@@ -586,6 +580,9 @@ TINTED_BLOCKS = {
     "melon_stem": "[0.372549 0.619608 0.207843 0.000000]",
     "attached_pumpkin_stem": "[0.372549 0.619608 0.207843 0.000000]",
     "attached_melon_stem": "[0.372549 0.619608 0.207843 0.000000]",
+    "redstone_dust_dot": "[0.760784 0.000000 0.000000 0.000000]",
+    "redstone_dust_line0": "[0.760784 0.000000 0.000000 0.000000]",
+    "redstone_dust_line1": "[0.760784 0.000000 0.000000 0.000000]",
     "water_still": "[0.247059 0.462745 0.894118 0.000000]",
     "water_flow": "[0.247059 0.462745 0.894118 0.000000]",
     "lava_still": "[1.000000 1.000000 1.000000 0.000000]",
@@ -604,6 +601,8 @@ def get_texture_name(block_name: str) -> str:
         short = base[len("minecraft:"):]
     else:
         short = base
+    if short == "redstone_lamp" and "lit=true" in block_name:
+        return "redstone_lamp_on"
     # Check if this block has a different texture name than its block name
     return TEXTURE_REMAP.get(short, short)
 
@@ -710,7 +709,7 @@ def get_color_tint(texture_name: str) -> str | None:
     return TINTED_BLOCKS.get(texture_name)
 
 
-# Light-emitting blocks with glow strength (0-15 scale, converted to 0-1).  
+# Light-emitting blocks with glow strength (0-15 scale, converted to 0-1).
 # Blocks in this dict always get F_SELF_ILLUM with brightness = value/15.
 LIGHT_BLOCKS: dict[str, int] = {
     "lava_still": 15,
@@ -762,6 +761,8 @@ def get_glow_power(texture_name: str) -> float:
 def is_self_illuminated(block_name: str) -> bool:
     """Check if block emits light. Works with both block names and texture names."""
     base = block_name.split("[")[0] if "[" in block_name else block_name
+    if base == "minecraft:redstone_lamp" and "lit=true" not in block_name:
+        return False
     if base in SELF_ILLUMINATED_BLOCKS:
         return True
     # Also check by texture name (e.g. "minecraft:lava_still" -> "lava_still")

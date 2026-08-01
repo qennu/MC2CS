@@ -417,8 +417,10 @@ class ModelBlockQuadGenerator:
                     if mc_face not in _ELEMENT_FACE_VERTS:
                         continue
 
-                    # For flat-plane elements, skip the second face (backface rendered by material)
-                    if is_flat_plane:
+                    # For flat-plane elements, skip the second face (backface rendered by material).
+                    # Spore blossom petals are separate directional planes; keep all faces
+                    # to avoid two petals being mirrored/culled incorrectly.
+                    if is_flat_plane and not block_name.split("[")[0].endswith("spore_blossom"):
                         if flat_face_emitted:
                             continue
                         flat_face_emitted = True
@@ -445,6 +447,13 @@ class ModelBlockQuadGenerator:
                         resolved = self._resolver._resolve_texture_ref(tex_ref, textures)
                         if resolved:
                             tex_name = self._resolver._texture_ref_to_name(resolved)
+
+                    # Vanilla lever models can route the whole model through the
+                    # cobblestone particle/base texture in some packs. Keep the
+                    # base plate as cobblestone, but force the raised handle to
+                    # the dedicated lever texture.
+                    if block_name.split("[")[0] == "minecraft:lever" and y2 > 3.5:
+                        tex_name = "lever"
 
                     # Apply element-level rotation if present
                     if rotation:

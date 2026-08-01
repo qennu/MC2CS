@@ -430,6 +430,11 @@ class MCtoCSApp(ctk.CTk):
                         variable=self._stair_clip_var).grid(
             row=1, column=2, padx=(0, 20), pady=(5, 0), sticky="w")
 
+        self._fence_clip_var = ctk.BooleanVar(value=False)
+        ctk.CTkCheckBox(entity_frame, text="Fence clips",
+                        variable=self._fence_clip_var).grid(
+            row=1, column=3, padx=(0, 20), pady=(5, 0), sticky="w")
+
         self._auto_light_var = ctk.BooleanVar(value=False)
         ctk.CTkCheckBox(entity_frame, text="Auto-lighting",
                         variable=self._auto_light_var).grid(
@@ -1176,6 +1181,7 @@ class MCtoCSApp(ctk.CTk):
             use_climbable = self._climbable_var.get()
             use_slime = self._slime_var.get()
             use_stair_clips = self._stair_clip_var.get()
+            use_fence_clips = self._fence_clip_var.get()
             use_auto_light = self._auto_light_var.get()
             use_merge_edges = self._merge_edges_var.get()
             separate_liquids = use_func_water or use_trigger_hurt
@@ -1214,7 +1220,8 @@ class MCtoCSApp(ctk.CTk):
                 generate_climbable=use_climbable,
                 generate_slime=use_slime,
                 generate_stair_clips=use_stair_clips,
-                generate_lights=use_auto_light)
+                generate_lights=use_auto_light,
+                generate_fence_clips=use_fence_clips)
 
             if model_gen:
                 model_gen.close()
