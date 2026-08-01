@@ -37,12 +37,12 @@ class ModelResolver:
             assets_path: Path to either:
                 - A folder containing assets/minecraft/ (resource pack root)
                 - A folder that IS assets/minecraft/
-                - A .zip resource pack file
+                - A .zip/.jar resource pack or Minecraft client archive
         """
         self._zip = None
         self._folder = None
 
-        if os.path.isfile(assets_path) and assets_path.lower().endswith(".zip"):
+        if os.path.isfile(assets_path) and assets_path.lower().endswith((".zip", ".jar")):
             self._zip = zipfile.ZipFile(assets_path, "r")
         elif os.path.isdir(assets_path):
             # Check if this is the root (has assets/) or is assets/minecraft/ itself
