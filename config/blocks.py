@@ -385,6 +385,9 @@ SELF_ILLUMINATED_BLOCKS = frozenset({
     "minecraft:respawn_anchor",
     "minecraft:sculk_catalyst",
     "minecraft:lantern", "minecraft:soul_lantern",
+    "minecraft:cave_vines", "minecraft:cave_vines_plant",
+    "minecraft:cave_vines_lit", "minecraft:cave_vines_plant_lit",
+    "minecraft:sea_pickle",
     "minecraft:campfire", "minecraft:soul_campfire",
     "minecraft:lava",
 })
