@@ -91,6 +91,9 @@ def _generate_vmat_content(texture_path: str, *,
         lines.append('\tshader "csgo_simple.vfx"')
         lines.append("")
 
+    # Source 2/CS2 expects physics surface properties inside
+    # SystemAttributes. g_sSurfaceProperty is ignored by generated VMATs.
+
     # Ambient Occlusion
     lines.append("\t//---- Ambient Occlusion ----")
     lines.append('\tTextureAmbientOcclusion "materials/default/default_ao.tga"')
@@ -246,6 +249,9 @@ def _generate_pbr_vmat_content(texture_path: str, *,
         lines.append("\tF_ALPHA_TEST 1")
         lines.append("")
 
+    # Source 2/CS2 expects physics surface properties inside
+    # SystemAttributes. g_sSurfaceProperty is ignored by generated VMATs.
+
     # AO
     lines.append("\t//---- Ambient Occlusion ----")
     lines.append('\tTextureAmbientOcclusion "materials/default/default_ao.tga"')
@@ -361,6 +367,16 @@ def _is_binary_alpha(img: Image.Image) -> bool:
         return False
     alpha = np.array(img.split()[3], dtype=np.uint8)
     return bool(np.all((alpha == 0) | (alpha == 255)))
+
+
+def _is_chromatic_texture(img: Image.Image, threshold: float = 6.0) -> bool:
+    """Return True if a texture already carries meaningful RGB color."""
+    arr = np.array(img.convert("RGBA"), dtype=np.float32)
+    alpha = arr[..., 3] > 0
+    if not np.any(alpha):
+        return False
+    rgb = arr[..., :3][alpha]
+    return bool(np.mean(np.max(rgb, axis=1) - np.min(rgb, axis=1)) >= threshold)
 
 
 def _heightmap_to_normal(heightmap: Image.Image, strength: float = 1.0) -> Image.Image:
@@ -540,6 +556,12 @@ class MaterialGenerator:
             if glow > 0:
                 is_illum = True
             tint = get_color_tint(block_name)
+            if tint and (block_name.endswith("_leaves") or block_name.endswith("_leaves_opaque")):
+                # Newer Java leaves such as azalea/flowering azalea ship as
+                # already-coloured textures. Only keep biome tint for legacy
+                # grayscale/yellow-mask leaves (for example jungle_leaves).
+                if _is_chromatic_texture(img):
+                    tint = None
             use_pbr = (self.texture_reader.is_bedrock
                        and self.texture_reader.has_mer(block_name))
             backfaces = _needs_render_backfaces(block_name)
@@ -833,6 +855,12 @@ class MaterialGenerator:
             if glow > 0:
                 is_illum = True
             tint = get_color_tint(block_name)
+            if tint and (block_name.endswith("_leaves") or block_name.endswith("_leaves_opaque")):
+                # Newer Java leaves such as azalea/flowering azalea ship as
+                # already-coloured textures. Only keep biome tint for legacy
+                # grayscale/yellow-mask leaves (for example jungle_leaves).
+                if _is_chromatic_texture(img):
+                    tint = None
             use_pbr = (self.texture_reader.is_bedrock
                        and self.texture_reader.has_mer(block_name))
             backfaces = _needs_render_backfaces(block_name)

@@ -385,6 +385,9 @@ SELF_ILLUMINATED_BLOCKS = frozenset({
     "minecraft:respawn_anchor",
     "minecraft:sculk_catalyst",
     "minecraft:lantern", "minecraft:soul_lantern",
+    "minecraft:cave_vines", "minecraft:cave_vines_plant",
+    "minecraft:cave_vines_lit", "minecraft:cave_vines_plant_lit",
+    "minecraft:sea_pickle",
     "minecraft:campfire", "minecraft:soul_campfire",
     "minecraft:lava",
 })
@@ -444,12 +447,16 @@ NOSHADOW_MESH_BLOCKS = frozenset({
 def is_light_source(block_name: str) -> bool:
     """Check if a block emits light for auto-lighting."""
     base = block_name.split("[")[0] if "[" in block_name else block_name
+    if base == "minecraft:redstone_lamp":
+        return "lit=true" in block_name
     return base in LIGHT_EMITTING_BLOCKS
 
 
 def get_light_properties(block_name: str):
     """Get light properties for a block. Returns (level, color, lumens) or None."""
     base = block_name.split("[")[0] if "[" in block_name else block_name
+    if base == "minecraft:redstone_lamp" and "lit=true" not in block_name:
+        return None
     return LIGHT_EMITTING_BLOCKS.get(base)
 
 
