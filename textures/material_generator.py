@@ -32,16 +32,7 @@ _BACKFACE_PATTERNS = frozenset({
 
 def _needs_render_backfaces(block_name: str) -> bool:
     """Return True if this texture needs backface rendering."""
-    # Keep ordinary cube materials single-sided; grass_block/dirt backfaces
-    # produce hidden internal faces and regress culling/compile performance.
-    if block_name in {"grass_block_top", "grass_block_side", "grass_block_snow", "dirt"}:
-        return False
-    # Bamboo models already contain the visible faces they need; forcing
-    # material backfaces changes its previous, correct appearance.
-    if block_name.startswith("bamboo"):
-        return False
-    # Leaf blocks are cube-like in Minecraft and should not be double-sided.
-    if block_name.endswith("_leaves") or block_name.endswith("_leaves_opaque"):
+    if block_name == "sea_lantern" or block_name.endswith("_leaves"):
         return False
     for pat in _BACKFACE_PATTERNS:
         if pat in block_name:
@@ -540,7 +531,7 @@ class MaterialGenerator:
             texture_names = [n for n in self.texture_reader.texture_names
                              if n in needed and "overlay" not in n and self.texture_reader.has_texture(n)]
         else:
-            texture_names = self.texture_reader.texture_names
+            texture_names = [n for n in self.texture_reader.texture_names if "overlay" not in n]
 
         mat_dir = os.path.join(addon_folder, "materials", map_name)
         os.makedirs(mat_dir, exist_ok=True)

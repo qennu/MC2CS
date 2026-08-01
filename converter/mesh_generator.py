@@ -297,6 +297,7 @@ def generate_quads(grid: BlockGrid, scale: float = 64.0,
             solid_lut[idx] = is_solid_for_culling(name)
             model_lut[idx] = is_model_block(name)
             if (not model_lut[idx] and model_generator is not None
+                    and get_block_base_name(name) != "minecraft:light"
                     and model_generator.is_non_full_cube_model(name)):
                 # Prefer live MC assets over the static registry so newer
                 # Minecraft versions do not need every shaped/decorative block
@@ -316,7 +317,9 @@ def generate_quads(grid: BlockGrid, scale: float = 64.0,
             half_height_lut[idx] = is_half_height_block(name)
             barrier_lut[idx] = is_barrier_block(name)
             short_base = base[len("minecraft:"):] if base.startswith("minecraft:") else base
-            fence_lut[idx] = short_base.endswith("_fence") or short_base == "nether_brick_fence"
+            fence_lut[idx] = ((short_base.endswith("_fence") or short_base.endswith("_wall")
+                               or short_base == "nether_brick_fence")
+                              and "gate" not in short_base)
 
     light_lut = np.zeros(max_idx, dtype=bool)
     if generate_lights:
@@ -759,7 +762,7 @@ def generate_quads(grid: BlockGrid, scale: float = 64.0,
             bp = (int(bx), int(by), int(bz))
             stair_clip_quads.extend(
                 _generate_box_quads(int(bx), int(by), int(bz),
-                                   0, 0, 0, 1, clip_height, 1,
+                                   0.3125, 0, 0.3125, 0.6875, clip_height, 0.6875,
                                    block, scale, offset, bp))
 
     # --- Barrier blocks: invisible full-cube clip brushes ---
@@ -840,6 +843,8 @@ def generate_quads(grid: BlockGrid, scale: float = 64.0,
 
             base = get_block_base_name(block)
             if base == "minecraft:light":
+                if (int(bx) & 1) or (int(by) & 1) or (int(bz) & 1):
+                    continue
                 cs2_x = mx + ox
                 cs2_y = -mz + oy
                 cs2_z = my + oz

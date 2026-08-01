@@ -564,7 +564,7 @@ TINT_MASK_OVERLAYS = {}
 # (they are grey/white in the texture pack and tinted in-game)
 TINTED_BLOCKS = {
     "grass_block_top": "[0.372549 0.619608 0.207843 0.000000]",
-    "jungle_leaves": "[0.207843 0.552941 0.145098 0.000000]",
+    "jungle_leaves": "[0.337255 0.517647 0.207843 0.000000]",
     "short_grass": "[0.372549 0.619608 0.207843 0.000000]",
     "tall_grass": "[0.372549 0.619608 0.207843 0.000000]",
     "tall_grass_top": "[0.372549 0.619608 0.207843 0.000000]",
@@ -601,7 +601,7 @@ def get_texture_name(block_name: str) -> str:
         short = base[len("minecraft:"):]
     else:
         short = base
-    if short == "redstone_lamp" and "lit=true" in block_name:
+    if short == "redstone_lamp":
         return "redstone_lamp_on"
     # Check if this block has a different texture name than its block name
     return TEXTURE_REMAP.get(short, short)
@@ -820,7 +820,6 @@ DAMAGE_BLOCKS = frozenset({
     "minecraft:sweet_berry_bush",
     "minecraft:campfire",
     "minecraft:soul_campfire",
-    "minecraft:pointed_dripstone",
 })
 
 

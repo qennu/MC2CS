@@ -440,6 +440,10 @@ class ModelBlockQuadGenerator:
                     # Compute model UVs from pre-rotation vertex positions
                     texcoords = _compute_element_face_uvs(mc_face, face_data, from_pos, to_pos)
 
+                    if block_name.split("[")[0].endswith("spore_blossom") and mc_face in {"east", "west"}:
+                        verts_mc = list(reversed(verts_mc))
+                        texcoords = list(reversed(texcoords))
+
                     # Resolve texture name from model data
                     tex_ref = face_data.get("texture", "")
                     tex_name = None
